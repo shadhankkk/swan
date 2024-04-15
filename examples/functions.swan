@@ -1,0 +1,47 @@
+function foo(x)
+{
+  function bar(y)
+  {
+    return x + y;
+  };
+
+  return bar(1);
+};
+
+var x = [1,2,3, "hola"];
+x[1] = x[0] + x[1] + x[2];
+
+print(x);
+
+if(x[foo(x[0])] == x[2])
+{
+  print("SUCCESS");
+};
+
+var sum = 0;
+
+for(var i = 0; i<length(x); i = i + 1)
+{
+  sum = sum + x[i];
+};
+
+print(sum);
+
+print(length(x));
+
+(append(append(x, 3), 5));
+
+print(x);
+
+print("STR + TEST");
+
+print(1);
+var rand = 3;
+print(2);
+var om = "world";
+print(3);
+
+print(rand+om);
+print(rand);
+print(om);
+print(4);
