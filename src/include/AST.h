@@ -13,7 +13,7 @@ typedef struct AST_STRUCT
     AST_ARRAY_ACCESS,
     AST_ARRAY_ASSIGNMENT,
     AST_IF_STATEMENT,
-    AST_ELSE_IF_STATEMENT,
+    // AST_ELSE_IF_STATEMENT,
     AST_WHILE_LOOP,
     AST_FOR_LOOP,
     AST_FUNCTION_CALL,
@@ -34,6 +34,7 @@ typedef struct AST_STRUCT
   /* AST_VARIABLE_DEFINITION */
   char* variable_definition_variable_name;
   struct AST_STRUCT* variable_definition_value;
+  struct AST_STRUCT* original_variable_definition_value;
  
   /* AST_FUNCTION_DEFINITION */
   struct AST_STRUCT* function_definition_body;
@@ -49,11 +50,11 @@ typedef struct AST_STRUCT
   struct AST_STRUCT* new_assignment_value;
 
   /* AST_ARRAY_ACCESS */
-  char* array_access_variable_name;
+  struct AST_STRUCT* array_access_array;
   struct AST_STRUCT* array_access_index;
 
   /* AST_ARRAY_ASSIGNMENT */
-  char* array_assignment_variable_name;
+  struct AST_STRUCT* array_assignment_array;
   struct AST_STRUCT* array_assignment_index;
   struct AST_STRUCT* new_array_assignment_value;
 
@@ -114,4 +115,6 @@ typedef struct AST_STRUCT
 
 
 AST_T* init_ast(int type);
+
+AST_T* ast_copy(AST_T* ast);
 #endif

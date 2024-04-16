@@ -299,10 +299,12 @@ AST_T* parser_parse_variable_definition(parser_T* parser)
   parser_eat(parser, TOKEN_ID); // var name
   parser_eat(parser, TOKEN_EQUALS);
   AST_T* variable_definition_value = parser_parse_expr(parser);
+  AST_T* original_variable_definition_value = variable_definition_value;
 
   AST_T* variable_definition = init_ast(AST_VARIABLE_DEFINITION);
   variable_definition->variable_definition_variable_name = variable_definition_variable_name;
   variable_definition->variable_definition_value = variable_definition_value;
+  variable_definition->original_variable_definition_value = original_variable_definition_value;
   
   return variable_definition;
 }
@@ -385,8 +387,7 @@ AST_T* parser_parse_variable_assignment(parser_T* parser)
 
 AST_T* parser_parse_array_access(parser_T* parser)
 {
-
-  char* variable_name = parser->prev_token->value;
+  AST_T* array_ast = parsed_expr_stack_get_back(parser);
   parser_eat(parser, TOKEN_LSQAURE_BRACKET);
   AST_T* index = parser_parse_expr(parser);
   parser_eat(parser, TOKEN_RSQAURE_BRACKET);
@@ -397,7 +398,7 @@ AST_T* parser_parse_array_access(parser_T* parser)
     AST_T* res = init_ast(AST_ARRAY_ASSIGNMENT);
     res->array_assignment_index = index;
     res->new_array_assignment_value = parser_parse_expr(parser);
-    res->array_assignment_variable_name = variable_name;
+    res->array_assignment_array = array_ast;
 
     return res;
   }
@@ -405,7 +406,13 @@ AST_T* parser_parse_array_access(parser_T* parser)
   {
     AST_T* res = init_ast(AST_ARRAY_ACCESS);
     res->array_access_index = index;
-    res->array_access_variable_name = variable_name;
+    res->array_access_array = array_ast;
+
+    if(parser->current_token->type == TOKEN_LSQAURE_BRACKET)
+    {
+      parsed_expr_stack_push_back(parser, res);
+      return parser_parse_array_access(parser);
+    }
 
     if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
     {
@@ -434,6 +441,10 @@ AST_T* parser_parse_variable(parser_T* parser)
   }
   else if(parser->current_token->type == TOKEN_LSQAURE_BRACKET)
   {
+    AST_T* ast_variable = init_ast(AST_VARIABLE);
+    ast_variable->variable_name = token_value;
+    parsed_expr_stack_push_back(parser, ast_variable);
+
     return parser_parse_array_access(parser);
   }
   else
@@ -487,7 +498,7 @@ AST_T* parser_parse_array(parser_T* parser)
 {
   AST_T* array_ast = init_ast(AST_ARRAY);
   parser_eat(parser, TOKEN_LSQAURE_BRACKET); // [
-  if(parser->current_token->value == "]")
+  if(strcmp(parser->current_token->value, "]") == 0)
   {
     parser_eat(parser, TOKEN_RSQAURE_BRACKET);
     return array_ast;

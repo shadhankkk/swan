@@ -58,4 +58,11 @@ AST_T* visitor_visit_rbrace(visitor_T* visitor, AST_T* node);
 
 AST_T* visitor_visit_return_statement(visitor_T* visitor, AST_T* node);
 
+/* LINEAR ALGEBRA STUFF */
+AST_T* visitor_visit_matrix_addition(visitor_T* visitor, AST_T* m1, AST_T* m2);
+
+AST_T* visitor_visit_matrix_subtraction(visitor_T* visitor, AST_T* m1, AST_T* m2);
+
+AST_T* visitor_visit_matrix_multiplication(visitor_T* visitor, AST_T* m1, AST_T* m2);
+
 #endif

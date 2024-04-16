@@ -1,47 +1,30 @@
-function foo(x)
-{
-  function bar(y)
-  {
-    return x + y;
-  };
+var x
+=
+[
+  [5, 9, 10, 129, 99],
+  [46, 23, 17, 66, 28],
+  [35, 39, 88, 82, 76]
+];
 
-  return bar(1);
+var y
+=
+[
+  [3,12,56],
+  [90, 72, 44],
+  [53, 78, 0],
+  [9, 2, 61],
+  [420, 12, 2]
+];
+
+var z = (x * y) * x;
+
+print(z);
+
+function foo(a)
+{
+  a[1] = 5;
 };
 
-var x = [1,2,3, "hola"];
-x[1] = x[0] + x[1] + x[2];
-
-print(x);
-
-if(x[foo(x[0])] == x[2])
-{
-  print("SUCCESS");
-};
-
-var sum = 0;
-
-for(var i = 0; i<length(x); i = i + 1)
-{
-  sum = sum + x[i];
-};
-
-print(sum);
-
-print(length(x));
-
-(append(append(x, 3), 5));
-
-print(x);
-
-print("STR + TEST");
-
-print(1);
-var rand = 3;
-print(2);
-var om = "world";
-print(3);
-
-print(rand+om);
-print(rand);
-print(om);
-print(4);
+var a = [3,2];
+foo(a);
+print(a);

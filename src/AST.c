@@ -1,4 +1,6 @@
 #include "include/AST.h"
+#include <string.h>
+#include <stdio.h>
 
 AST_T* init_ast(int type)
 {
@@ -8,6 +10,7 @@ AST_T* init_ast(int type)
   /* AST_VARIABLE_DEFINITION */
   ast->variable_definition_variable_name = (void*) 0;
   ast->variable_definition_value = (void*) 0;
+  struct AST_STRUCT* original_variable_definition_value = (void*) 0;
 
   /* AST_FUNCTION_DEFINITION */
   ast->function_definition_body = (void*) 0;
@@ -23,11 +26,11 @@ AST_T* init_ast(int type)
   ast->new_assignment_value = (void*) 0;
 
   /* AST_ARRAY_ACCESS */
-  ast->array_access_variable_name = (void*) 0;
+  ast->array_access_array = (void*) 0;
   ast->array_access_index = (void*) 0;
 
   /* AST_ARRAY_ASSIGNMENT */
-  ast->array_assignment_variable_name = (void*) 0;
+  ast->array_assignment_array= (void*) 0;
   ast->array_assignment_index = (void*) 0;
   ast->new_array_assignment_value = (void*) 0;
 
@@ -84,4 +87,60 @@ AST_T* init_ast(int type)
   ast->return_statement = (void*) 0;
 
   return ast;
+}
+
+AST_T* ast_copy(AST_T* ast)
+{
+  AST_T* res;
+  if(ast->type == AST_LITERAL)
+  {
+    res = init_ast(AST_LITERAL);
+    res->literal_value = ast->literal_value;
+    return res;
+  }
+  else if(ast->type == AST_BOOLEAN)
+  {
+    res = init_ast(AST_BOOLEAN);
+    res->boolean_value = ast->boolean_value;
+    return res;
+  }
+  else if(ast->type == AST_STRING)
+  {
+    res = init_ast(AST_STRING);
+    res->string_value = calloc(
+      strlen(ast->string_value) + 1,
+      sizeof(char)
+    );
+    strcpy(res->string_value, ast->string_value);
+    return res;
+  }
+  else if(ast->type == AST_ARRAY)
+  {
+    res = init_ast(AST_ARRAY);
+    res->array_size = ast->array_size;
+    res->array = calloc(
+      res->array_size,
+      sizeof(struct AST_STRUCT*)
+    );
+
+    for(int i=0; i<res->array_size; ++i)
+    {
+      res->array[i] = ast_copy(ast->array[i]);
+    }
+
+    return res;
+  }
+  else if(ast->type == AST_VARIABLE_DEFINITION)
+  {
+    res = init_ast(AST_VARIABLE_DEFINITION);
+    res->variable_definition_value = ast_copy(ast->variable_definition_value);
+    res->variable_definition_variable_name = calloc(strlen(ast->variable_definition_variable_name) + 1, sizeof(char));
+    res->variable_definition_variable_name = strcpy(res->variable_definition_variable_name, ast->variable_definition_variable_name);
+
+    return res;
+  }
+  else
+  {
+    return init_ast(AST_NOOP);
+  }
 }
