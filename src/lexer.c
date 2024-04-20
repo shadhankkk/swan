@@ -28,7 +28,7 @@ void lexer_advance(lexer_T* lexer)
 
 void lexer_skip_whitespace(lexer_T* lexer)
 {
-  while(lexer->currentCharacter == whitespaceCharacter || lexer->currentCharacter == 10)
+  while(lexer->currentCharacter == whitespaceCharacter || lexer->currentCharacter == '\n' || lexer->currentCharacter == '\r')
   {
     lexer_advance(lexer);
   } 
@@ -39,7 +39,7 @@ token_T* lexer_get_next_token(lexer_T* lexer)
   while(lexer->currentCharacter != nullCharacter && lexer->currentIndex < strlen(lexer->contents))
   {
 
-    if(lexer->currentCharacter == whitespaceCharacter || lexer->currentCharacter == 10)
+    if(lexer->currentCharacter == whitespaceCharacter || lexer->currentCharacter == '\n' || lexer->currentCharacter == '\r')
       lexer_skip_whitespace(lexer);
 
     if(lexer->currentCharacter == '&')
