@@ -121,7 +121,7 @@ static AST_T* builtin_function_push(visitor_T* visitor, AST_T** args, int args_s
     exit(1);
   }
 
-  AST_T* argument1 = ast_copy(evaluate_array(visitor, visitor_visit(visitor, args[0])));
+  AST_T* argument1 = visitor_visit(visitor, args[0]);
   AST_T* argument2 = visitor_visit(visitor, args[1]);
   if(argument2->type == AST_ARRAY)
   {
