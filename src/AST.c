@@ -10,7 +10,6 @@ AST_T* init_ast(int type)
   /* AST_VARIABLE_DEFINITION */
   ast->variable_definition_variable_name = (void*) 0;
   ast->variable_definition_value = (void*) 0;
-  struct AST_STRUCT* original_variable_definition_value = (void*) 0;
 
   /* AST_FUNCTION_DEFINITION */
   ast->function_definition_body = (void*) 0;
@@ -141,6 +140,8 @@ AST_T* ast_copy(AST_T* ast)
   }
   else
   {
+    printf("Uncaught type %d to copy AST\n", ast->type);
+    exit(1);
     return init_ast(AST_NOOP);
   }
 }

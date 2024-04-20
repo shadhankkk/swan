@@ -34,7 +34,6 @@ typedef struct AST_STRUCT
   /* AST_VARIABLE_DEFINITION */
   char* variable_definition_variable_name;
   struct AST_STRUCT* variable_definition_value;
-  struct AST_STRUCT* original_variable_definition_value;
  
   /* AST_FUNCTION_DEFINITION */
   struct AST_STRUCT* function_definition_body;
@@ -84,7 +83,7 @@ typedef struct AST_STRUCT
   char* string_value;
 
   /* AST_LITERAL */
-  long long literal_value;
+  long double literal_value;
 
   /* AST BOOLEAN */
   bool boolean_value;

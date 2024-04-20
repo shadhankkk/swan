@@ -70,11 +70,23 @@ token_T* lexer_get_next_token(lexer_T* lexer)
       token_T* curr_token = lexer_collect_id(lexer);
 
       int i=0;
+      int dotcount = 0;
       while(curr_token->value[i] != '\0')
       {
         if(!isdigit(curr_token->value[i]))
         {
-          return curr_token;
+          if(curr_token->value[i] == '.')
+          {
+            ++dotcount;
+          } else
+          {
+            return curr_token;
+          }
+
+          if(dotcount > 1)
+          {
+            return curr_token;
+          }
         }
         ++i;
       }
@@ -170,7 +182,7 @@ token_T* lexer_collect_id(lexer_T* lexer)
   value[0] = nullCharacter;
 
   char endQuoteCharacter = '"';
-  while(isalnum(lexer->currentCharacter))
+  while(isalnum(lexer->currentCharacter) || lexer->currentCharacter == '_' || lexer->currentCharacter == '.')
   {
     char* s = lexer_get_current_char_as_string(lexer);
     value = realloc(value, (strlen(value) + strlen(s) + 1) * sizeof(char));

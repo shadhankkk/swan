@@ -1,6 +1,36 @@
 #include "include/parser.h"
+#include "include/queue.h"
+#include "include/stack.h"
 #include <stdio.h>
 #include <string.h>
+
+bool is_operator(char* s)
+{
+  return (strcmp(s, "+") == 0)
+         || (strcmp(s,"-") == 0)
+         || (strcmp(s, "/") == 0)
+         || (strcmp(s, "+") == 0)
+         || (strcmp(s, "&&") == 0)
+         || (strcmp(s, "||") == 0)
+         || (strcmp(s, ">") == 0)
+         || (strcmp(s, "<") == 0)
+         || (strcmp(s, "==") == 0);
+}
+
+int get_operator_precedence(char* s)
+{
+  return strcmp(s, "||") == 0
+         ? 0
+         : strcmp(s, "&&") == 0
+         ? 1
+         : strcmp(s, "==") == 0 || strcmp(s, ">") == 0 || strcmp(s, "<") == 0
+         ? 2
+         : strcmp(s, "+") == 0 || strcmp(s, "-") == 0
+         ? 3
+         : strcmp(s, "*") == 0 || strcmp(s, "/") == 0
+         ? 4
+         : -1;
+}
 
 parser_T* init_parser(lexer_T* lexer)
 {
@@ -44,6 +74,11 @@ AST_T* parsed_expr_stack_get_back(parser_T* parser)
   {
     return parser->parsed_expr_stack[parser->parsed_expr_stack_size - 1];
   }
+}
+
+bool parsed_expr_stack_is_empty(parser_T* parser)
+{
+  return parser->parsed_expr_stack_size == 0;
 }
 
 void parsed_expr_stack_clear(parser_T* parser)
@@ -155,18 +190,42 @@ AST_T* parser_parse_expr(parser_T* parser)
     case TOKEN_LITERAL: res = parser_parse_literal(parser); break;
     case TOKEN_ID: res = parser_parse_id(parser); break;
     case TOKEN_LSQAURE_BRACKET: res = parser_parse_array(parser); break;
-    case TOKEN_UNARY_OPERATOR: return parser_parse_unary_operator(parser); break;
-    case TOKEN_BINARY_OPERATOR: return parser_parse_binary_operator(parser); break;
+    case TOKEN_UNARY_OPERATOR: res = parser_parse_unary_operator(parser); break;
+    case TOKEN_BINARY_OPERATOR: res = parser_parse_binary_operator(parser); break;
   }
 
   parsed_expr_stack_push_back(parser, res);
+
+  if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
+  {
+    return parser_parse_expr(parser);
+  }
 
   return res;
 }
 
 AST_T* parser_parse_factor(parser_T* parser)
 {
+  if(parser->current_token->type == TOKEN_LPAREN)
+  {
+    parser_eat(parser, TOKEN_LPAREN);
+    AST_T* res = parser_parse_expr(parser);
+    parser_eat(parser, TOKEN_RPAREN);
 
+    return res;
+  }
+  AST_T* res = init_ast(AST_NOOP);
+
+  switch (parser->current_token->type)
+  {
+    case TOKEN_STRING: res = parser_parse_string(parser); break;
+    case TOKEN_LITERAL: res = parser_parse_literal(parser); break;
+    case TOKEN_ID: res = parser_parse_id(parser); break;
+    case TOKEN_LSQAURE_BRACKET: res = parser_parse_array(parser); break;
+    case TOKEN_UNARY_OPERATOR: return parser_parse_unary_operator(parser); break;
+  }
+
+  return res;
 }
 
 AST_T* parser_parse_term(parser_T* parser)
@@ -236,11 +295,11 @@ AST_T* parser_parse_for_loop(parser_T* parser)
   AST_T* for_loop_ast = init_ast(AST_FOR_LOOP);
   parser_eat(parser, TOKEN_ID); // for
   parser_eat(parser, TOKEN_LPAREN);
-  for_loop_ast->for_loop_var_definition = parser_parse_statement(parser);
+  for_loop_ast->for_loop_var_definition = parser_parse_expr(parser);
   parser_eat(parser, TOKEN_SEMI);
-  for_loop_ast->for_loop_predicate = parser_parse_statement(parser);
+  for_loop_ast->for_loop_predicate = parser_parse_expr(parser);
   parser_eat(parser, TOKEN_SEMI);
-  for_loop_ast->for_loop_assignment = parser_parse_statement(parser);
+  for_loop_ast->for_loop_assignment = parser_parse_expr(parser);
   parser_eat(parser, TOKEN_RPAREN);
 
   parser_eat(parser, TOKEN_LBRACE);
@@ -304,7 +363,6 @@ AST_T* parser_parse_variable_definition(parser_T* parser)
   AST_T* variable_definition = init_ast(AST_VARIABLE_DEFINITION);
   variable_definition->variable_definition_variable_name = variable_definition_variable_name;
   variable_definition->variable_definition_value = variable_definition_value;
-  variable_definition->original_variable_definition_value = original_variable_definition_value;
   
   return variable_definition;
 }
@@ -414,11 +472,11 @@ AST_T* parser_parse_array_access(parser_T* parser)
       return parser_parse_array_access(parser);
     }
 
-    if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
-    {
-      parsed_expr_stack_push_back(parser, res);
-      return parser_parse_expr(parser);
-    }
+    // if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
+    // {
+    //   parsed_expr_stack_push_back(parser, res);
+    //   return parser_parse_expr(parser);
+    // }
 
     return res;
   }
@@ -452,11 +510,11 @@ AST_T* parser_parse_variable(parser_T* parser)
     AST_T* ast_variable = init_ast(AST_VARIABLE);
     ast_variable->variable_name = token_value;
 
-    if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
-    {
-      parsed_expr_stack_push_back(parser, ast_variable);
-      return parser_parse_expr(parser);
-    }
+    // if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
+    // {
+    //   parsed_expr_stack_push_back(parser, ast_variable);
+    //   return parser_parse_expr(parser);
+    // }
   
     return ast_variable;
   }
@@ -469,11 +527,11 @@ AST_T* parser_parse_string(parser_T* parser)
 
   parser_eat(parser, TOKEN_STRING);
 
-  if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
-  {
-    parsed_expr_stack_push_back(parser, ast_string);
-    return parser_parse_expr(parser);
-  }
+  // if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
+  // {
+  //   parsed_expr_stack_push_back(parser, ast_string);
+  //   return parser_parse_expr(parser);
+  // }
 
   return ast_string;
 }
@@ -481,15 +539,15 @@ AST_T* parser_parse_string(parser_T* parser)
 AST_T* parser_parse_literal(parser_T* parser)
 {
   AST_T* ast_literal = init_ast(AST_LITERAL);
-  ast_literal->literal_value = atoi(parser->current_token->value);
+  ast_literal->literal_value = atof(parser->current_token->value);
 
   parser_eat(parser, TOKEN_LITERAL);
 
-  if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
-  {
-    parsed_expr_stack_push_back(parser, ast_literal);
-    return parser_parse_expr(parser);
-  }
+  // if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
+  // {
+  //   parsed_expr_stack_push_back(parser, ast_literal);
+  //   return parser_parse_expr(parser);
+  // }
 
   return ast_literal;
 }
@@ -536,17 +594,94 @@ AST_T* parser_parse_unary_operator(parser_T* parser)
 
 AST_T* parser_parse_binary_operator(parser_T* parser)
 {
-  AST_T* bin_op_ast = init_ast(AST_BINARY_OPERATOR);
+  // if(strcmp(parser->current_token->value, "-") == 0 && (parsed_expr_stack_is_empty(parser) || parser->prev_token->type == TOKEN_BINARY_OPERATOR))
+  // {
+  //   printf("hola\n");
+  //   AST_T* un_op_ast = init_ast(AST_UNARY_OPERATOR);
+  //   un_op_ast->unary_operator = "-";
+  //   parser_eat(parser, TOKEN_BINARY_OPERATOR);
+  //   un_op_ast->unary_operand = parser_parse_expr(parser);
 
-  bin_op_ast->binary_operator = parser->current_token->value;
-
-  bin_op_ast->operand1 = parsed_expr_stack_get_back(parser);
-
-  parser_eat(parser, TOKEN_BINARY_OPERATOR); // binary operator
+  //   return un_op_ast;
+  // }
   
-  bin_op_ast->operand2 = parser_parse_expr(parser);
+  // AST_T* bin_op_ast = init_ast(AST_BINARY_OPERATOR);
 
-  return bin_op_ast;
+  // bin_op_ast->binary_operator = parser->current_token->value;
+  
+  // bin_op_ast->operand1 = parsed_expr_stack_get_back(parser);
+
+  // parser_eat(parser, TOKEN_BINARY_OPERATOR); // binary operator
+  
+  // bin_op_ast->operand2 = parser_parse_expr(parser);
+
+  // return bin_op_ast;
+
+  if(parsed_expr_stack_is_empty(parser) && strcmp(parser->current_token->value, "-") == 0)
+  {
+    AST_T* un_op_ast = init_ast(AST_UNARY_OPERATOR);
+    un_op_ast->unary_operator = "-";
+    parser_eat(parser, TOKEN_BINARY_OPERATOR);
+    un_op_ast->unary_operand = parser_parse_factor(parser);
+    
+    return un_op_ast;
+  }
+
+  queue_T* q = init_queue();
+  stack_T* s = init_stack();
+  enqueue(q, parsed_expr_stack_get_back(parser));
+
+  while(parser->current_token->type == TOKEN_BINARY_OPERATOR)
+  {
+
+    AST_T* op_ast = init_ast(AST_BINARY_OPERATOR);
+    op_ast->binary_operator = parser->current_token->value;
+
+    parser_eat(parser, TOKEN_BINARY_OPERATOR); // eat binary
+    
+    while(!is_empty_stack(s) && get_operator_precedence(op_ast->binary_operator) <= get_operator_precedence(stack_get_back(s)->binary_operator))
+    {
+      enqueue(q, stack_get_back(s));
+      stack_pop_back(s);
+    }
+
+    stack_push_back(s, op_ast);
+    if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
+    {
+      AST_T* unary_op_ast = init_ast(AST_UNARY_OPERATOR);
+      unary_op_ast->unary_operator = parser->current_token->value;
+      parser_eat(parser, TOKEN_BINARY_OPERATOR); // eat unary
+      unary_op_ast->unary_operand = parser_parse_factor(parser);
+      enqueue(q, unary_op_ast);
+      continue;
+    }
+    enqueue(q, parser_parse_factor(parser));
+  }
+
+  while(!is_empty_stack(s))
+  {
+    enqueue(q, stack_get_back(s));
+    stack_pop_back(s);
+  }
+
+  while(!is_empty_queue(q))
+  {
+    AST_T* qfront = dequeue(q);
+    if(qfront->type == AST_BINARY_OPERATOR && qfront->operand1 == (void*) 0  && qfront->operand2 == (void*) 0)
+    {
+      qfront->operand2 = stack_get_back(s);
+      stack_pop_back(s);
+      qfront->operand1 = stack_get_back(s);
+      stack_pop_back(s);
+      stack_push_back(s, qfront);
+    }
+    else
+    {
+      stack_push_back(s, qfront);
+    }
+  }
+
+  return stack_get_back(s);
 }
 
 AST_T* parser_parse_return_statement(parser_T* parser)
@@ -586,11 +721,11 @@ AST_T* parser_parse_id(parser_T* parser)
     AST_T* ast = init_ast(AST_BOOLEAN);
     ast->boolean_value = true;
 
-    if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
-    {
-      parsed_expr_stack_push_back(parser, ast);
-      return parser_parse_expr(parser);
-    }
+    // if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
+    // {
+    //   parsed_expr_stack_push_back(parser, ast);
+    //   return parser_parse_expr(parser);
+    // }
 
     return ast;
   }
@@ -600,11 +735,11 @@ AST_T* parser_parse_id(parser_T* parser)
     AST_T* ast = init_ast(AST_BOOLEAN);
     ast->boolean_value = false;
 
-    if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
-    {
-      parsed_expr_stack_push_back(parser, ast);
-      return parser_parse_expr(parser);
-    }
+    // if(parser->current_token->type == TOKEN_BINARY_OPERATOR)
+    // {
+    //   parsed_expr_stack_push_back(parser, ast);
+    //   return parser_parse_expr(parser);
+    // }
 
     return ast;
   }

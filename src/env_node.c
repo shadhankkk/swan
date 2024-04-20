@@ -25,7 +25,7 @@ env_node_T* add_variable_definition_to_env_node(AST_T* variable_definition, env_
     env_node->variable_definitions = calloc(1, sizeof(struct AST_STRUCT*));
     ++env_node->variable_definitions_size;
     env_node->variable_definitions[0] = ast_copy(variable_definition);
-    //env_node->variable_definitions[0]->variable_definition_value = ast_copy(variable_definition->variable_definition_value);
+    
   }
   else
   {
@@ -46,7 +46,7 @@ env_node_T* add_variable_definition_to_env_node(AST_T* variable_definition, env_
     );
 
     env_node->variable_definitions[env_node->variable_definitions_size - 1] = ast_copy(variable_definition);
-    //env_node->variable_definitions[env_node->variable_definitions_size - 1]->variable_definition_value = variable_definition->original_variable_definition_value;
+    
   }
 
   return env_node;

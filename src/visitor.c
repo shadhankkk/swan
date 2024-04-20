@@ -2,6 +2,39 @@
 #include <stdio.h>
 #include <string.h>
 
+/* array copy and evaluate */
+visitor_T* evaluate_array(visitor_T* visitor, AST_T* node)
+{
+
+  if(node->type != AST_ARRAY)
+  {
+    printf("Failed to evaluate non-array type\n");
+    exit(1);
+  }
+
+  AST_T* arr_copy = init_ast(AST_ARRAY);
+  arr_copy->array_size = node->array_size;
+  arr_copy->array = calloc(
+    node->array_size,
+    sizeof(struct AST_STRUCT*)
+  );
+
+  for(int i=0; i<node->array_size; ++i)
+  {
+    AST_T* elem_i = visitor_visit(visitor, node->array[i]);
+    if(elem_i->type == AST_ARRAY)
+    {
+      arr_copy->array[i] = ast_copy(evaluate_array(visitor, elem_i));
+    }
+    else
+    {
+      arr_copy->array[i] = ast_copy(visitor_visit(visitor, elem_i));
+    }
+  }
+
+  return arr_copy;
+}
+
 visitor_T* init_visitor()
 {
   visitor_T* visitor = calloc(1, sizeof(struct VISITOR_STRUCT));
@@ -27,11 +60,19 @@ static AST_T* builtin_function_print(visitor_T* visitor, AST_T** args, int args_
   for(int i = 0; i < args_size; ++i)
   {
     AST_T* visited_ast = visitor_visit(visitor, args[i]);
-
+    if(visited_ast->type == AST_ARRAY)
+    {
+      visited_ast = evaluate_array(visitor, visited_ast);
+    }
+    
     switch (visited_ast->type)
     {
       case AST_STRING: printf("%s%s", visited_ast->string_value, newline); break;
-      case AST_LITERAL: printf("%d%s", visited_ast->literal_value, newline); break;
+      case AST_LITERAL: 
+        visited_ast->literal_value == (int) visited_ast->literal_value
+        ? printf("%d%s", (int) visited_ast->literal_value, newline)
+        : printf("%Lf%s", visited_ast->literal_value, newline);
+      break;
       case AST_BOOLEAN: visited_ast->boolean_value ? printf("true%s", newline) : printf("false%s", newline); break;
       case AST_ARRAY: printf("\n[\n"); builtin_function_print(visitor, visited_ast->array, visited_ast->array_size, " "); printf("\n]\n"); break;
       default: printf("print fail at mem address: %p%s", visited_ast, newline); break;
@@ -50,7 +91,7 @@ static AST_T* builtin_function_length(visitor_T* visitor, AST_T** args, int args
     exit(1);
   }
 
-  AST_T* argument = visitor_visit(visitor, args[0]);
+  AST_T* argument = ast_copy(evaluate_array(visitor, visitor_visit(visitor, args[0])));
   AST_T* res = init_ast(AST_LITERAL);
 
   if(argument->type == AST_ARRAY)
@@ -80,20 +121,24 @@ static AST_T* builtin_function_push(visitor_T* visitor, AST_T** args, int args_s
     exit(1);
   }
 
-  args[0] = visitor_visit(visitor, args[0]);
-  args[1] = visitor_visit(visitor, args[1]);
-
-  if(args[0]->type == AST_ARRAY)
+  AST_T* argument1 = ast_copy(evaluate_array(visitor, visitor_visit(visitor, args[0])));
+  AST_T* argument2 = visitor_visit(visitor, args[1]);
+  if(argument2->type == AST_ARRAY)
   {
-    ++args[0]->array_size;
-    args[0]->array = realloc(
-      args[0]->array,
-      args[0]->array_size * sizeof(struct AST_STRUCT*)
+    argument2 = evaluate_array(visitor, argument2);
+  }
+
+  if(argument1->type == AST_ARRAY)
+  {
+    ++argument1->array_size;
+    argument1->array = realloc(
+      argument1->array,
+      argument1->array_size * sizeof(struct AST_STRUCT*)
     );
 
-    args[0]->array[args[0]->array_size - 1] = args[1];
+    argument1->array[argument1->array_size - 1] = argument2;
 
-    return args[0];
+    return argument1;
   }
   else
   {
@@ -113,13 +158,14 @@ static AST_T* builtin_function_append(visitor_T* visitor, AST_T** args, int args
     exit(1);
   }
 
-  args[0] = visitor_visit(visitor, args[0]);
-  args[1] = visitor_visit(visitor, args[1]);
 
-  if(args[0]->type == AST_ARRAY)
+  AST_T* argument1 = ast_copy(evaluate_array(visitor, visitor_visit(visitor, args[0])));
+  AST_T* argument2 = ast_copy(evaluate_array(visitor, visitor_visit(visitor, args[1])));
+
+  if(argument1->type == AST_ARRAY)
   {
 
-    if(args[1]->type != AST_ARRAY)
+    if(argument2->type != AST_ARRAY)
     {
       printf("Expected array type for 2nd argument in append\n");
       exit(1);
@@ -128,19 +174,20 @@ static AST_T* builtin_function_append(visitor_T* visitor, AST_T** args, int args
     AST_T* res_ast = init_ast(AST_ARRAY);
 
     res_ast->array = calloc(
-      (args[0]->array_size + args[1]->array_size),
+      (argument1->array_size + argument2->array_size),
       sizeof(struct AST_STRUCT*)
     );
-    res_ast->array_size = (args[0]->array_size + args[1]->array_size);
 
-    for(int i=0; i<args[0]->array_size; ++i)
+    res_ast->array_size = (argument1->array_size + argument2->array_size);
+
+    for(int i=0; i<argument1->array_size; ++i)
     {
-      res_ast->array[i] = ast_copy(visitor_visit(visitor, args[0]->array[i]));
+      res_ast->array[i] = ast_copy(visitor_visit(visitor, argument1->array[i]));
     }
     
-    for(int i=args[0]->array_size; i < (args[0]->array_size + args[1]->array_size); ++i)
+    for(int i=argument1->array_size; i < (argument1->array_size + argument2->array_size); ++i)
     {
-      res_ast->array[i] = ast_copy(visitor_visit(visitor, args[1]->array[i - args[0]->array_size]));
+      res_ast->array[i] = ast_copy(visitor_visit(visitor, argument2->array[i - argument1->array_size]));
     }
 
     return res_ast;
@@ -284,8 +331,15 @@ AST_T* visitor_visit_rbrace(visitor_T* visitor, AST_T* node)
 
 AST_T* visitor_visit_variable_definition(visitor_T* visitor, AST_T* node)
 {
-  node->variable_definition_value = visitor_visit(visitor, node->variable_definition_value);
+  AST_T* og_val = node->variable_definition_value;
+  if(node->variable_definition_value->type == AST_ARRAY)
+  {
+    node->variable_definition_value = evaluate_array(visitor, node->variable_definition_value);
+  }
+  node->variable_definition_value = ast_copy(visitor_visit(visitor, node->variable_definition_value));
+  
   visitor->env_list_head = add_variable_definition_to_env_node(node, visitor->env_list_head);
+  node->variable_definition_value = og_val;
   
   return node;
 }
@@ -343,6 +397,7 @@ AST_T* visitor_visit_variable(visitor_T* visitor, AST_T* node)
 AST_T* visitor_visit_assignment(visitor_T* visitor, AST_T* node)
 {
   env_node_T* curr_env = visitor->env_list_head;
+  
   while(curr_env!= (void*) 0)
   {
     for(int i=0; i<curr_env->variable_definitions_size; ++i)
@@ -375,13 +430,15 @@ AST_T* visitor_visit_array_access(visitor_T* visitor, AST_T* node)
   // AST_T* variable_ast = init_ast(AST_VARIABLE);
   // variable_ast->variable_name = node->array_access_variable_name;
   // AST_T* array_ast = visitor_visit(visitor, variable_ast);
-  AST_T* array_ast = node->array_access_array;
-  array_ast = visitor_visit(visitor, array_ast);
+  AST_T* array_ast = visitor_visit(visitor, node->array_access_array);
+  
   if(array_ast->type != AST_ARRAY)
   {
     printf("argument is not an array\n");
     exit(1);
   }
+
+  array_ast = visitor_visit(visitor, array_ast);
 
   if(index->literal_value >= array_ast->array_size)
   {
@@ -389,7 +446,7 @@ AST_T* visitor_visit_array_access(visitor_T* visitor, AST_T* node)
     exit(1);
   }
 
-  return array_ast->array[index->literal_value];
+  return array_ast->array[(int) index->literal_value];
 }
 
 AST_T* visitor_visit_array_assignment(visitor_T* visitor, AST_T* node)
@@ -404,8 +461,8 @@ AST_T* visitor_visit_array_assignment(visitor_T* visitor, AST_T* node)
   // AST_T* variable_ast = init_ast(AST_VARIABLE);
   // variable_ast->variable_name = node->array_assignment_variable_name;
   // AST_T* array_ast = visitor_visit(visitor, variable_ast);
-  AST_T* array_ast = node->array_assignment_array;
-  array_ast = visitor_visit(visitor, array_ast);
+  AST_T* array_ast = visitor_visit(visitor, node->array_assignment_array);
+  //array_ast = visitor_visit(visitor, array_ast);
   
   if(array_ast->type != AST_ARRAY)
   {
@@ -419,8 +476,8 @@ AST_T* visitor_visit_array_assignment(visitor_T* visitor, AST_T* node)
     exit(1);
   }
   
-  AST_T* new_assignment_value = ast_copy(visitor_visit(visitor, node->new_array_assignment_value));
-  array_ast->array[index->literal_value] = new_assignment_value;
+  AST_T* new_assignment_value = visitor_visit(visitor, node->new_array_assignment_value);
+  array_ast->array[(int) index->literal_value] = new_assignment_value;
 
   return node;
 }
@@ -463,6 +520,7 @@ AST_T* visitor_visit_for_loop(visitor_T* visitor, AST_T* node)
   AST_T* var_definition = visitor_visit(visitor, node->for_loop_var_definition);
   AST_T* predicate = visitor_visit(visitor, node->for_loop_predicate);
   AST_T* assignment = node->for_loop_assignment;
+  
   while(predicate->boolean_value == true)
   {
     visitor_visit_lbrace(visitor, node);
@@ -529,8 +587,9 @@ AST_T* visitor_visit_function_call(visitor_T* visitor, AST_T* node)
 
         for(int j=0; j<curr_function_definition->function_definition_arguments_size; ++j)
         {
-          char* argument_symbol = curr_function_definition->function_definition_arguments[j];
-          AST_T* argument_value = visitor_visit(function_visitor, node->function_call_arguments[j]);
+          char* argument_symbol = curr_function_definition->function_definition_arguments[j];\
+
+          AST_T* argument_value = visitor_visit(visitor, node->function_call_arguments[j]);
           
           AST_T* argument_bound_variable = init_ast(AST_VARIABLE_DEFINITION);
           argument_bound_variable->variable_definition_variable_name = argument_symbol;
@@ -568,10 +627,17 @@ AST_T* visitor_visit_boolean(visitor_T* visitor, AST_T* node)
 
 AST_T* visitor_visit_array(visitor_T* visitor, AST_T* node)
 {
-  for(int i=0; i<node->array_size; ++i)
-  {
-    node->array[i] = visitor_visit(visitor, node->array[i]);
-  }
+  // AST_T* arr_ast = init_ast(AST_ARRAY);
+  // arr_ast->array_size = node->array_size;
+  // arr_ast->array = calloc(
+  //   node->array_size,
+  //   sizeof(struct AST_STRUCT*)
+  // );
+
+  // for(int i=0; i<node->array_size; ++i)
+  // {
+  //   arr_ast->array[i] = ast_copy(visitor_visit(visitor, node->array[i]));
+  // }
 
   return node;
 }
@@ -606,6 +672,14 @@ AST_T* visitor_visit_unary_operator(visitor_T* visitor, AST_T* node)
   {
     AST_T* res = init_ast(AST_BOOLEAN);
     res->boolean_value = !unary_operand->boolean_value;
+
+    return res;
+  }
+
+  if(strcmp(operator, "-") == 0)
+  {
+    AST_T* res = init_ast(AST_LITERAL);
+    res->literal_value = -1 * unary_operand->literal_value;
 
     return res;
   }
